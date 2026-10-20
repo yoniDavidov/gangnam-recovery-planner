@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gangnam Recovery Planner</title>
+<meta name="description" content="Plan a Seoul beauty trip around downtime: see which days you'll be resting, which you can go out, when you're photo-ready, and whether your flight home is too early.">
+<meta property="og:title" content="Gangnam Recovery Planner">
+<meta property="og:description" content="Fit your procedures, recovery and flight home into one trip calendar.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F6F8; --ink:#18212C; --muted:#5B6673; --line:#D9DEE4; --card:#FFFFFF;
+    --teal:#0E7C7B;
+    --s-proc:#18212C; --s-rest:#E7BFC7; --s-low:#F1DDA6; --s-out:#CFE6D8; --s-photo:#0E7C7B;
+    --warn-bg:#FFF4E0; --warn-ink:#7A4B00; --err-bg:#FDE8EA; --err-ink:#8A1C2B; --ok-bg:#E3F3EC; --ok-ink:#145C42;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#10161D; --ink:#E9EEF3; --muted:#9AA6B2; --line:#2A3440; --card:#17202A;
+      --teal:#3FB8B4;
+      --s-proc:#E9EEF3; --s-rest:#7E4552; --s-low:#7A6526; --s-out:#2F5B45; --s-photo:#3FB8B4;
+      --warn-bg:#3A2C10; --warn-ink:#F5D08A; --err-bg:#3D1A21; --err-ink:#F6B3BE; --ok-bg:#163A2C; --ok-ink:#9FE0C2;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:17px;line-height:1.5}
+  main{max-width:980px;margin:0 auto;padding:40px 16px 64px}
+  h1{font-size:clamp(2rem,5vw,3.2rem);line-height:1.05;font-weight:800;letter-spacing:-.02em;margin:0 0 12px;max-width:16ch}
+  .lede{color:var(--muted);max-width:60ch;margin:0 0 32px}
+  h2{font-size:1.25rem;font-weight:600;margin:0 0 12px}
+  section{margin-bottom:36px}
+  .trip{display:flex;gap:16px;flex-wrap:wrap}
+  label{display:flex;flex-direction:column;gap:4px;font-size:.9rem;color:var(--muted)}
+  input,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-width:0}
+  input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+  .proc-row{display:grid;grid-template-columns:1fr 170px 40px;gap:10px;align-items:end;margin-bottom:10px}
+  .proc-row .bookby{grid-column:1/-1;font-size:.88rem;color:var(--muted);margin:-4px 0 6px}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:9px 14px}
+  button.remove{padding:9px 0;width:40px}
+  button.add{border-style:dashed}
+
+  /* the wristband: one strip per trip day */
+  .band{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
+  .day{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-height:104px}
+  .day .top{padding:6px 8px 4px;font-size:.78rem;color:var(--muted);line-height:1.25}
+  .day .top b{display:block;color:var(--ink);font-size:1.05rem}
+  .day .bar{flex:1;padding:6px 8px;font-size:.78rem;font-weight:600;display:flex;align-items:flex-end}
+  .st-proc .bar{background:var(--s-proc);color:var(--paper)}
+  .st-rest .bar{background:var(--s-rest)}
+  .st-low .bar{background:var(--s-low)}
+  .st-out .bar{background:var(--s-out)}
+  .st-photo .bar{background:var(--s-photo);color:var(--paper)}
+  .day.flight{border:2px solid var(--ink)}
+  .day.followup .top::after{content:"Clinic check";display:block;color:var(--teal);font-weight:600}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 0;padding:0;list-style:none;font-size:.88rem;color:var(--muted)}
+  .legend span{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+
+  .notes{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+  .note{border-radius:8px;padding:10px 12px;font-size:.95rem}
+  .note.warn{background:var(--warn-bg);color:var(--warn-ink)}
+  .note.err{background:var(--err-bg);color:var(--err-ink)}
+  .note.ok{background:var(--ok-bg);color:var(--ok-ink)}
+  .empty{color:var(--muted);border:1px dashed var(--line);border-radius:10px;padding:24px;text-align:center}
+  footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padding-top:16px;max-width:70ch}
+  @media (max-width:560px){ .proc-row{grid-template-columns:1fr 40px} .proc-row label.date{grid-column:1/2} }
+</style>
+</head>
+<body>
+<main>
+  <h1>Will you look ready for your own trip photos?</h1>
+  <p class="lede">Add your dates and the treatments you're booking in Gangnam. The calendar shows which days you'll be resting, which you can go out, when you're photo-ready, and whether your flight home leaves before your clinic would sign you off.</p>
+
+  <section aria-labelledby="trip-h">
+    <h2 id="trip-h">Your trip</h2>
+    <div class="trip">
+      <label>Land in Seoul <input type="date" id="arrive"></label>
+      <label>Fly home <input type="date" id="depart"></label>
+    </div>
+  </section>
+
+  <section aria-labelledby="proc-h">
+    <h2 id="proc-h">What you're booking</h2>
+    <div id="procs"></div>
+    <button class="add" id="add">Add a treatment</button>
+  </section>
+
+  <section aria-labelledby="cal-h">
+    <h2 id="cal-h">Your trip, day by day</h2>
+    <div id="band" class="band"></div>
+    <ul class="legend">
+      <li><span style="background:var(--s-proc)"></span>Treatment day</li>
+      <li><span style="background:var(--s-rest)"></span>Stay in, rest</li>
+      <li><span style="background:var(--s-low)"></span>Out, low-key (mask, sunglasses)</li>
+      <li><span style="background:var(--s-out)"></span>Out and about</li>
+      <li><span style="background:var(--s-photo)"></span>Photo-ready</li>
+    </ul>
+    <div class="notes" id="notes" aria-live="polite"></div>
+  </section>
+
+  <footer>
+    Recovery times are typical planning ranges that clinics give first-time visitors, not medical advice. Swelling varies a lot between people and techniques. Your clinic's own aftercare plan and fit-to-fly advice always override this calendar. After surgery, ask your surgeon about long-haul flights and blood-clot risk before booking your return.
+  </footer>
+</main>
+
+<script>
+/* Planning data. Days are counted from the treatment day (day 0).
+   rest:   last day you'll probably want to stay in
+   low:    last day of visible swelling/bruising (going out is fine, photos aren't)
+   photo:  day you usually look natural in photos
+   fly:    minimum days most clinics want before you fly home
+   check:  day of the usual follow-up / stitch or splint removal (null = none) */
+const TREATMENTS = {
+  botox:      {name:"Botox",                         rest:-1, low:1,  photo:3,  fly:0,  check:null},
+  filler:     {name:"Filler (lips, nose, under-eye)", rest:-1, low:4,  photo:7,  fly:1,  check:null},
+  booster:    {name:"Skin booster (e.g. Rejuran)",    rest:-1, low:2,  photo:3,  fly:0,  check:null},
+  toning:     {name:"Laser toning / pico",            rest:-1, low:0,  photo:1,  fly:0,  check:null},
+  hifu:       {name:"HIFU lifting (Ulthera, Shurink)",rest:-1, low:1,  photo:3,  fly:0,  check:null},
+  thermage:   {name:"Thermage",                       rest:-1, low:0,  photo:1,  fly:0,  check:null},
+  co2:        {name:"CO2 fractional laser",           rest:3,  low:7,  photo:10, fly:1,  check:null},
+  eyelidNon:  {name:"Double eyelid (non-incisional)", rest:2,  low:7,  photo:14, fly:3,  check:5},
+  eyelidInc:  {name:"Double eyelid (incisional)",     rest:3,  low:10, photo:30, fly:7,  check:6},
+  rhino:      {name:"Rhinoplasty",                    rest:5,  low:14, photo:30, fly:10, check:7},
+  contour:    {name:"Facial contouring (jaw, cheek)", rest:10, low:21, photo:60, fly:14, check:10},
+  lipo:       {name:"Liposuction",                    rest:3,  low:7,  photo:14, fly:7,  check:7},
+};
+const STATES = [ // ordered best -> worst
+  {key:"photo", label:"Photo-ready"},
+  {key:"out",   label:"Out and about"},
+  {key:"low",   label:"Low-key"},
+  {key:"rest",  label:"Rest"},
+  {key:"proc",  label:"Treatment"},
+];
+const DAY = 86400000;
+const parse = s => { if(!s) return null; const [y,m,d]=s.split("-").map(Number); return Date.UTC(y,m-1,d); };
+const iso = t => new Date(t).toISOString().slice(0,10);
+const fmt = (t,o) => new Date(t).toLocaleDateString("en-GB",{timeZone:"UTC",...o});
+const between = (a,b) => Math.round((b-a)/DAY);
+
+function stateFor(t, d){ // t treatment, d days since treatment
+  if(d===0) return 4;
+  if(d<=t.rest) return 3;
+  if(d<=t.low) return 2;
+  if(d<t.photo) return 1;
+  return 0;
+}
+
+const $ = id => document.getElementById(id);
+const procsEl = $("procs");
+
+function addRow(key="filler", date=""){
+  const row = document.createElement("div");
+  row.className = "proc-row";
+  const opts = Object.entries(TREATMENTS).map(([k,t])=>`<option value="${k}" ${k===key?"selected":""}>${t.name}</option>`).join("");
+  row.innerHTML = `
+    <label>Treatment <select class="t">${opts}</select></label>
+    <label class="date">Date <input type="date" class="d" value="${date}"></label>
+    <button class="remove" aria-label="Remove treatment">✕</button>
+    <div class="bookby"></div>`;
+  row.querySelector(".remove").onclick = () => { row.remove(); render(); };
+  row.querySelectorAll("select,input").forEach(el => el.addEventListener("input", render));
+  procsEl.appendChild(row);
+}
+
+function render(){
+  const a = parse($("arrive").value), dep = parse($("depart").value);
+  const rows = [...procsEl.querySelectorAll(".proc-row")];
+  const procs = rows.map(r => ({row:r, t:TREATMENTS[r.querySelector(".t").value], date:parse(r.querySelector(".d").value)}));
+  const notes = [];
+
+  // "book by" hint per row
+  procs.forEach(p => {
+    const bb = p.row.querySelector(".bookby");
+    if(dep==null){ bb.textContent=""; return; }
+    const latest = dep - p.t.fly*DAY, photoBy = dep - p.t.photo*DAY;
+    let txt = p.t.fly>0 ? `Book by ${fmt(latest,{day:"numeric",month:"short"})} to meet the usual ${p.t.fly}-day fit-to-fly wait.` : `No usual flying wait.`;
+    txt += a!=null && photoBy < a ? ` You won't be photo-ready before you leave (takes about ${p.t.photo} days).`
+         : ` For photo-ready before you fly, book by ${fmt(photoBy,{day:"numeric",month:"short"})}.`;
+    bb.textContent = txt;
+  });
+
+  if(a==null || dep==null){ $("band").innerHTML = `<div class="empty">Pick the day you land and the day you fly home to see your calendar.</div>`; $("notes").innerHTML=""; return; }
+  if(dep <= a){ $("band").innerHTML = `<div class="empty">Your flight home is on or before the day you land. Check the two dates.</div>`; $("notes").innerHTML=""; return; }
+  const span = between(a,dep);
+  if(span > 90){ $("band").innerHTML = `<div class="empty">That's a ${span}-day trip. This planner covers trips up to 90 days.</div>`; $("notes").innerHTML=""; return; }
+
+  const dated = procs.filter(p => p.date!=null);
+  let html = "", photoDays = 0;
+  const checks = new Set();
+  dated.forEach(p => { if(p.t.check!=null) checks.add(iso(p.date + p.t.check*DAY)); });
+
+  for(let i=0;i<=span;i++){
+    const day = a + i*DAY;
+    let worst = 0, why = "";
+    dated.forEach(p => {
+      const d = between(p.date, day);
+      if(d < 0) return;
+      const s = stateFor(p.t, d);
+      if(s > worst){ worst = s; why = p.t.name; }
+    });
+    if(worst===0) photoDays++;
+    const st = STATES[worst];
+    const cls = ["day","st-"+st.key, i===span?"flight":"", checks.has(iso(day))?"followup":""].join(" ");
+    const title = why ? `${st.label} (${why})` : st.label;
+    html += `<div class="${cls}" title="${title}"><div class="top">${fmt(day,{weekday:"short"})}<b>${fmt(day,{day:"numeric",month:"short"})}</b></div><div class="bar">${i===span?"Fly home":st.label}</div></div>`;
+  }
+  $("band").innerHTML = html;
+
+  // checks
+  dated.forEach(p => {
+    const n = p.t.name, d = p.date;
+    if(d < a) notes.push(["err", `${n} is booked before you land (${fmt(d,{day:"numeric",month:"short"})}).`]);
+    else if(d >= dep) notes.push(["err", `${n} is booked on or after your flight home.`]);
+    else {
+      const gap = between(d, dep);
+      if(gap < p.t.fly) notes.push(["err", `${n}: you fly ${gap} day${gap===1?"":"s"} after it. Clinics usually want at least ${p.t.fly} days before a flight. Move it earlier or change your flight.`]);
+      if(p.t.check!=null && d + p.t.check*DAY >= dep) notes.push(["warn", `${n}: the usual follow-up (stitch or splint removal, around day ${p.t.check}) falls after you leave. Ask the clinic how they handle that.`]);
+      if(gap < p.t.photo) notes.push(["warn", `${n}: you'll still be healing on your last day. It usually takes about ${p.t.photo} days to look natural in photos.`]);
+    }
+  });
+  if(procs.some(p=>p.date==null)) notes.push(["warn","Some treatments don't have a date yet, so they aren't on the calendar."]);
+  // two surgeries on overlapping rest days
+  const heavy = dated.filter(p=>p.t.rest>=2).sort((x,y)=>x.date-y.date);
+  for(let i=1;i<heavy.length;i++){
+    if(between(heavy[i-1].date, heavy[i].date) <= heavy[i-1].t.rest)
+      notes.push(["warn", `${heavy[i].t.name} is booked while you're still in the rest period from ${heavy[i-1].t.name}. Many clinics do combined surgery on the same day instead. Ask them.`]);
+  }
+  if(!notes.some(n=>n[0]==="err") && dated.length) notes.push(["ok", `Your flight works with what you've booked. You have ${photoDays} photo-ready day${photoDays===1?"":"s"} on this trip.`]);
+  $("notes").innerHTML = notes.map(([k,t])=>`<div class="note ${k}">${t}</div>`).join("");
+}
+
+$("arrive").addEventListener("input", render);
+$("depart").addEventListener("input", render);
+$("add").onclick = () => { addRow(); render(); };
+
+// sensible example so the page isn't empty on first load
+(function seed(){
+  const today = new Date(); const base = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) + 30*DAY;
+  $("arrive").value = iso(base);
+  $("depart").value = iso(base + 12*DAY);
+  addRow("eyelidNon", iso(base + 1*DAY));
+  addRow("botox", iso(base + 6*DAY));
+  render();
+})();
+</script>
+</body>
+</html>
